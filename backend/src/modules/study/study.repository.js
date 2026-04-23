@@ -1,4 +1,5 @@
 const Note = require('../../models/note.model');
+const Result = require('../../models/result.model');
 
 class StudyRepository {
   async create(data) {
@@ -45,6 +46,18 @@ class StudyRepository {
       { textContent, status: 'ready' },
       { new: true }
     );
+  }
+
+  async updateById(noteId, data) {
+    return Note.findByIdAndUpdate(noteId, data, { new: true, runValidators: true });
+  }
+
+  async deleteById(noteId) {
+    return Note.findByIdAndDelete(noteId);
+  }
+
+  async deleteResultsByNoteId(noteId) {
+    return Result.deleteMany({ noteId });
   }
 }
 

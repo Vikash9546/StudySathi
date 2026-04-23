@@ -76,6 +76,45 @@ class StudyController {
       next(error);
     }
   }
+
+  /**
+   * PUT /study/notes/:id
+   * Body: { title?, textContent? }
+   */
+  async updateNote(req, res, next) {
+    try {
+      const { title, textContent } = req.body;
+      const note = await studyService.updateNote(req.params.id, req.user.id, {
+        title,
+        textContent,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: note,
+        message: 'Note updated successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * DELETE /study/notes/:id
+   */
+  async deleteNote(req, res, next) {
+    try {
+      const result = await studyService.deleteNote(req.params.id, req.user.id);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Note and associated results deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new StudyController();

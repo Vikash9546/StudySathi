@@ -115,6 +115,78 @@ class StudyService {
   }
 
   /**
+   * Update a note's title or text content.
+   *
+   * @param {string} noteId
+   * @param {string} userId
+   * @param {{ title?: string, textContent?: string }} data
+   */
+  async updateNote(noteId, userId, data) {
+    const note = await studyRepository.findById(noteId);
+    if (!note) {
+      const error = new Error('Note not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (note.userId.toString() !== userId) {
+      const error = new Error('Access denied');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Whitelist allowed fields
+    const allowed = {};
+    if (data.title !== undefined && data.title.trim().length > 0) {
+      allowed.title = data.title.trim();
+    }
+    if (data.textContent !== undefined) {
+      allowed.textContent = data.textContent;
+      // Recalculate hash when text content changes
+      allowed.hash = hashBuffer(Buffer.from(data.textContent, 'utf-8'));
+      allowed.status = 'ready';
+    }
+
+    if (Object.keys(allowed).length === 0) {
+      const error = new Error('No valid fields to update (title or textContent)');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updated = await studyRepository.updateById(noteId, allowed);
+    logger.info(`Note ${noteId} updated by user ${userId}`);
+    return updated;
+  }
+
+  /**
+   * Delete a note and all its associated AI results.
+   *
+   * @param {string} noteId
+   * @param {string} userId
+   */
+  async deleteNote(noteId, userId) {
+    const note = await studyRepository.findById(noteId);
+    if (!note) {
+      const error = new Error('Note not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (note.userId.toString() !== userId) {
+      const error = new Error('Access denied');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    // Cascade delete: remove all AI results tied to this note
+    await studyRepository.deleteResultsByNoteId(noteId);
+
+    // Delete the note itself
+    await studyRepository.deleteById(noteId);
+
+    logger.info(`Note ${noteId} and its results deleted by user ${userId}`);
+    return { id: noteId };
+  }
+
+  /**
    * Background text extraction — updates note when done.
    */
   async _extractTextBackground(noteId, buffer, mimeType) {

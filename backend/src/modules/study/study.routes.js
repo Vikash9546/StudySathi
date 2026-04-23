@@ -17,5 +17,7 @@ router.use(authMiddleware);
 router.post('/upload', upload.single('file'), studyController.upload.bind(studyController));
 router.get('/notes', studyController.getNotes.bind(studyController));
 router.get('/notes/:id', studyController.getNoteById.bind(studyController));
+router.put('/notes/:id', studyController.updateNote.bind(studyController));
+router.delete('/notes/:id', studyController.deleteNote.bind(studyController));
 
 module.exports = router;

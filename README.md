@@ -44,6 +44,8 @@ Server runs at `http://localhost:5000`. Hit `/api/health` to verify.
 | POST | `/api/study/upload` | ✅ | Upload note (file/text) |
 | GET | `/api/study/notes` | ✅ | List notes (paginated) |
 | GET | `/api/study/notes/:id` | ✅ | Get single note |
+| PUT | `/api/study/notes/:id` | ✅ | Edit note title/text |
+| DELETE | `/api/study/notes/:id` | ✅ | Delete note & results |
 | POST | `/api/ai/summarize` | ✅ | Generate summary |
 | POST | `/api/ai/flashcards` | ✅ | Generate flashcards |
 | POST | `/api/ai/quiz` | ✅ | Generate quiz |
