@@ -1,0 +1,41 @@
+export const theme = {
+  colors: {
+    primary: '#000000',
+    secondary: '#333333',
+    background: '#FFFFFF',
+    surface: '#F5F5F5',
+    surfaceSecondary: '#E8E8E8',
+    textPrimary: '#000000',
+    textSecondary: '#333333',
+    textMuted: '#666666',
+    border: '#E0E0E0',
+    accent: '#000000',
+    success: '#10B981',
+    error: '#EF4444',
+    white: '#FFFFFF',
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+  },
+  radius: {
+    sm: 4,
+    md: 8,
+    lg: 12,
+    xl: 20,
+    full: 999,
+  },
+  typography: {
+    h1: { fontSize: 32, fontWeight: '800', lineHeight: 40 },
+    h2: { fontSize: 24, fontWeight: '700', lineHeight: 32 },
+    h3: { fontSize: 20, fontWeight: '700', lineHeight: 28 },
+    bodyBold: { fontSize: 16, fontWeight: '600' },
+    body: { fontSize: 16, fontWeight: '400', lineHeight: 24 },
+    caption: { fontSize: 14, fontWeight: '500', lineHeight: 20 },
+    tiny: { fontSize: 12, fontWeight: '700' },
+  }
+};

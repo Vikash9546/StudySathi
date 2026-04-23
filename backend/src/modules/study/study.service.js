@@ -1,68 +1,66 @@
-const { v4: uuidv4 } = require('uuid');
 const studyRepository = require('./study.repository');
-const { uploadToFirebase } = require('../../config/firebase');
-const { validateFile, extractText } = require('../../utils/fileParser');
+const { getGfs } = require('../../config/storage');
+const { extractText } = require('../../utils/fileParser');
 const { hashBuffer } = require('../../utils/hash');
 const logger = require('../../utils/logger');
+const stream = require('stream');
 
 class StudyService {
   /**
-   * Upload a note: validate → hash → check duplicate → upload to Firebase → extract text (async).
+   * Upload a note: Save buffer to GridFS manually → extract text (async).
    *
-   * @param {Object} file   – multer file object (buffer, mimetype, originalname, size)
+   * @param {Object} file   – multer memory file object
    * @param {string} userId – authenticated user ID
    * @returns {Object} note document
    */
   async uploadNote(file, userId) {
-    // 1. Validate file
-    const validation = validateFile(file);
-    if (!validation.valid) {
-      const error = new Error(validation.error);
-      error.statusCode = 400;
-      throw error;
-    }
-
-    // 2. Hash file for duplicate detection
+    // 1. Calculate hash first (we have the buffer in memory)
     const fileHash = hashBuffer(file.buffer);
     const existing = await studyRepository.findByUserIdAndHash(userId, fileHash);
+    
     if (existing) {
       const error = new Error('Duplicate file — this note already exists');
       error.statusCode = 409;
       throw error;
     }
 
-    // 3. Upload to Firebase Storage
-    const destPath = `notes/${userId}/${uuidv4()}_${file.originalname}`;
-    let fileUrl;
-    try {
-      fileUrl = await uploadToFirebase(file.buffer, destPath, file.mimetype);
-    } catch (err) {
-      logger.error(`Firebase upload failed: ${err.message}`);
-      const error = new Error('File upload failed. Please try again.');
-      error.statusCode = 502;
-      throw error;
-    }
+    // 2. Manually write buffer to GridFS
+    const gfs = getGfs();
+    const filename = `${Date.now()}-${file.originalname}`;
+    
+    const uploadStream = gfs.createWriteStream({
+      filename: filename,
+      bucketName: 'uploads',
+      content_type: file.mimetype
+    });
 
-    // 4. Create note with "processing" status
+    // Wrapped in a promise to handle stream success/failure
+    const fileId = await new Promise((resolve, reject) => {
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(file.buffer);
+      
+      bufferStream.pipe(uploadStream)
+        .on('error', (err) => reject(err))
+        .on('close', (fileData) => resolve(fileData._id));
+    });
+
+    // 3. Create note metadata record
     const note = await studyRepository.create({
       userId,
       title: file.originalname,
-      fileUrl,
-      fileName: file.originalname,
+      fileUrl: fileId,
+      fileName: filename,
       mimeType: file.mimetype,
       hash: fileHash,
       status: 'processing',
     });
 
-    // 5. Extract text in background (non-blocking)
+    // 4. Extract text in background
     this._extractTextBackground(note._id, file.buffer, file.mimetype);
 
     return note;
   }
 
-  /**
-   * Upload a plain-text note (no file upload needed).
-   */
   async uploadTextNote(text, title, userId) {
     if (!text || text.trim().length === 0) {
       const error = new Error('Text content cannot be empty');
@@ -89,16 +87,10 @@ class StudyService {
     return note;
   }
 
-  /**
-   * Get all notes for a user (paginated).
-   */
   async getNotes(userId, page, limit) {
     return studyRepository.findByUserId(userId, { page, limit });
   }
 
-  /**
-   * Get a single note by ID (with ownership check).
-   */
   async getNoteById(noteId, userId) {
     const note = await studyRepository.findById(noteId);
     if (!note) {
@@ -114,13 +106,6 @@ class StudyService {
     return note;
   }
 
-  /**
-   * Update a note's title or text content.
-   *
-   * @param {string} noteId
-   * @param {string} userId
-   * @param {{ title?: string, textContent?: string }} data
-   */
   async updateNote(noteId, userId, data) {
     const note = await studyRepository.findById(noteId);
     if (!note) {
@@ -134,61 +119,38 @@ class StudyService {
       throw error;
     }
 
-    // Whitelist allowed fields
     const allowed = {};
     if (data.title !== undefined && data.title.trim().length > 0) {
       allowed.title = data.title.trim();
     }
     if (data.textContent !== undefined) {
       allowed.textContent = data.textContent;
-      // Recalculate hash when text content changes
       allowed.hash = hashBuffer(Buffer.from(data.textContent, 'utf-8'));
       allowed.status = 'ready';
     }
 
-    if (Object.keys(allowed).length === 0) {
-      const error = new Error('No valid fields to update (title or textContent)');
-      error.statusCode = 400;
-      throw error;
-    }
+    if (Object.keys(allowed).length === 0) return note;
 
-    const updated = await studyRepository.updateById(noteId, allowed);
-    logger.info(`Note ${noteId} updated by user ${userId}`);
-    return updated;
+    return studyRepository.updateById(noteId, allowed);
   }
 
-  /**
-   * Delete a note and all its associated AI results.
-   *
-   * @param {string} noteId
-   * @param {string} userId
-   */
   async deleteNote(noteId, userId) {
     const note = await studyRepository.findById(noteId);
-    if (!note) {
-      const error = new Error('Note not found');
-      error.statusCode = 404;
-      throw error;
-    }
-    if (note.userId.toString() !== userId) {
-      const error = new Error('Access denied');
-      error.statusCode = 403;
-      throw error;
+    if (!note) throw new Error('Note not found');
+    if (note.userId.toString() !== userId) throw new Error('Access denied');
+
+    if (note.fileUrl) {
+      const gfs = getGfs();
+      gfs.remove({ _id: note.fileUrl, root: 'uploads' }, (err) => {
+        if (err) logger.error(`GridFS deletion failed: ${err.message}`);
+      });
     }
 
-    // Cascade delete: remove all AI results tied to this note
     await studyRepository.deleteResultsByNoteId(noteId);
-
-    // Delete the note itself
     await studyRepository.deleteById(noteId);
-
-    logger.info(`Note ${noteId} and its results deleted by user ${userId}`);
     return { id: noteId };
   }
 
-  /**
-   * Background text extraction — updates note when done.
-   */
   async _extractTextBackground(noteId, buffer, mimeType) {
     try {
       const text = await extractText(buffer, mimeType);
