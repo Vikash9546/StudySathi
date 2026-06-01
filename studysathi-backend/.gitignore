@@ -1,0 +1,28 @@
+# Node
+node_modules/
+dist/
+*.tgz
+.npm
+
+# Env
+.env
+.env.local
+.env.production
+
+# Build artifacts
+dist/
+*.js.map
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Tests
+coverage/

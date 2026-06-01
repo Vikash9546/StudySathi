@@ -1,0 +1,658 @@
+// This is your Prisma schema file
+// Learn more about it at: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+// ─────────────────────────────────────────────
+// AUTH & USERS
+// ─────────────────────────────────────────────
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+model User {
+  id                String           @id @default(uuid())
+  email             String           @unique
+  name              String?
+  avatarUrl         String?
+  passwordHash      String?
+  provider          AuthProvider     @default(EMAIL)
+  isEmailVerified   Boolean          @default(false)
+  plan              SubscriptionPlan @default(FREE)
+  examGoal          String?
+  subjects          String[]
+  dailyTargetMins   Int              @default(60)
+  examDate          DateTime?
+  onboardingDone    Boolean          @default(false)
+  xp                Int              @default(0)
+  level             Int              @default(1)
+  streakCount       Int              @default(0)
+  lastActiveDate    DateTime?
+  streakFreezeCount Int              @default(0)
+  pushToken         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  // Relations
+  refreshTokens      RefreshToken[]
+  oauthAccounts      OAuthAccount[]
+  documents          Document[]
+  quizAttempts       QuizAttempt[]
+  flashcardReviews   FlashcardReview[]
+  studyPlans         StudyPlan[]
+  topicPerformances  TopicPerformance[]
+  xpEvents           XPEvent[]
+  userBadges         UserBadge[]
+  communityPosts     CommunityPost[]
+  communityAnswers   CommunityAnswer[]
+  votes              Vote[]
+  notifications      Notification[]
+  subscription       Subscription?
+  sentChallenges     QuizChallenge[]  @relation("ChallengerUser")
+  receivedChallenges QuizChallenge[]  @relation("ChallengedUser")
+  sentFriendReqs     FriendRequest[]  @relation("SenderFR")
+  receivedFriendReqs FriendRequest[]  @relation("ReceiverFR")
+  followings         UserFollow[]     @relation("Follower")
+  followers          UserFollow[]     @relation("Following")
+  aiTutorSessions    AITutorSession[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model OAuthAccount {
+  id           String @id @default(uuid())
+  userId       String
+  provider     String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("oauth_accounts")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS
+// ─────────────────────────────────────────────
+
+enum DocumentStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model Document {
+  id               String         @id @default(uuid())
+  userId           String
+  title            String
+  fileName         String
+  fileType         String
+  fileSize         Int
+  storageKey       String
+  status           DocumentStatus @default(UPLOADING)
+  subject          String?
+  topics           String[]
+  educationLevel   String?
+  processingError  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks   DocumentChunk[]
+  questions Question[]
+  flashcards Flashcard[]
+  revisionNotes RevisionNote[]
+  mindMaps  MindMap[]
+
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id           String   @id @default(uuid())
+  documentId   String
+  chunkIndex   Int
+  content      String
+  tokenCount   Int
+  topic        String?
+  createdAt    DateTime @default(now())
+
+  document   Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embeddings DocumentEmbedding[]
+  questions  Question[]
+
+  @@map("document_chunks")
+}
+
+model DocumentEmbedding {
+  id        String                    @id @default(uuid())
+  chunkId   String
+  embedding Unsupported("vector(1536)")?
+  createdAt DateTime                  @default(now())
+
+  chunk DocumentChunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@map("document_embeddings")
+}
+
+// ─────────────────────────────────────────────
+// QUESTIONS
+// ─────────────────────────────────────────────
+
+enum QuestionType {
+  MCQ
+  SUBJECTIVE
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Question {
+  id               String          @id @default(uuid())
+  documentId       String?
+  chunkId          String?
+  type             QuestionType
+  question         String
+  options          String[]        // For MCQ: 4 options
+  correctAnswer    String?
+  explanation      String?
+  expectedAnswer   String?         // For subjective
+  rubric           String?         // For subjective grading
+  difficulty       DifficultyLevel @default(MEDIUM)
+  topic            String?
+  bloomLevel       String?         // Remember, Understand, Apply, Analyze
+  createdAt        DateTime        @default(now())
+
+  document       Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  chunk          DocumentChunk?   @relation(fields: [chunkId], references: [id], onDelete: SetNull)
+  attemptAnswers AttemptAnswer[]
+
+  @@map("questions")
+}
+
+// ─────────────────────────────────────────────
+// QUIZZES
+// ─────────────────────────────────────────────
+
+enum QuizType {
+  DOCUMENT
+  TOPIC
+  DAILY
+  CHALLENGE
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EVALUATED
+}
+
+model Quiz {
+  id          String   @id @default(uuid())
+  title       String
+  type        QuizType
+  documentId  String?
+  topic       String?
+  questionIds String[]
+  createdAt   DateTime @default(now())
+
+  attempts   QuizAttempt[]
+  challenges QuizChallenge[]
+
+  @@map("quizzes")
+}
+
+model QuizAttempt {
+  id          String        @id @default(uuid())
+  userId      String
+  quizId      String
+  status      AttemptStatus @default(IN_PROGRESS)
+  score       Float?
+  accuracy    Float?
+  timeTaken   Int?          // seconds
+  xpEarned    Int           @default(0)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz    Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers AttemptAnswer[]
+
+  @@map("quiz_attempts")
+}
+
+model AttemptAnswer {
+  id               String   @id @default(uuid())
+  attemptId        String
+  questionId       String
+  userAnswer       String
+  isCorrect        Boolean?
+  timeTaken        Int?     // seconds per question
+  aiScore          Float?   // for subjective
+  aiFeedback       String?
+  aiSuggestions    String?
+  createdAt        DateTime @default(now())
+
+  attempt  QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("attempt_answers")
+}
+
+model QuizChallenge {
+  id            String   @id @default(uuid())
+  quizId        String
+  challengerId  String
+  challengedId  String
+  winnerId      String?
+  status        String   @default("PENDING") // PENDING, ACTIVE, COMPLETED
+  createdAt     DateTime @default(now())
+
+  quiz       Quiz @relation(fields: [quizId], references: [id])
+  challenger User @relation("ChallengerUser", fields: [challengerId], references: [id])
+  challenged User @relation("ChallengedUser", fields: [challengedId], references: [id])
+
+  @@map("quiz_challenges")
+}
+
+// ─────────────────────────────────────────────
+// FLASHCARDS
+// ─────────────────────────────────────────────
+
+enum FlashcardType {
+  DEFINITION
+  FORMULA
+  PROCESS
+  CONCEPT
+  COMPARISON
+}
+
+enum FlashcardRating {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+model Flashcard {
+  id         String        @id @default(uuid())
+  documentId String
+  front      String
+  back       String
+  type       FlashcardType @default(CONCEPT)
+  topic      String?
+  createdAt  DateTime      @default(now())
+
+  document Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviews  FlashcardReview[]
+
+  @@map("flashcards")
+}
+
+model FlashcardReview {
+  id             String          @id @default(uuid())
+  userId         String
+  flashcardId    String
+  rating         FlashcardRating
+  easeFactor     Float           @default(2.5)
+  repetitions    Int             @default(0)
+  interval       Int             @default(1)   // days
+  nextReviewDate DateTime
+  reviewedAt     DateTime        @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@map("flashcard_reviews")
+}
+
+// ─────────────────────────────────────────────
+// STUDY PLAN
+// ─────────────────────────────────────────────
+
+model StudyPlan {
+  id        String   @id @default(uuid())
+  userId    String
+  weekStart DateTime
+  weekEnd   DateTime
+  goals     String[]
+  createdAt DateTime @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks StudyTask[]
+
+  @@map("study_plans")
+}
+
+model StudyTask {
+  id          String   @id @default(uuid())
+  planId      String
+  title       String
+  description String?
+  dueDate     DateTime
+  isCompleted Boolean  @default(false)
+  topic       String?
+
+  plan StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@map("study_tasks")
+}
+
+// ─────────────────────────────────────────────
+// ADAPTIVE LEARNING
+// ─────────────────────────────────────────────
+
+model TopicPerformance {
+  id               String   @id @default(uuid())
+  userId           String
+  topic            String
+  accuracy         Float    @default(0)
+  totalAttempts    Int      @default(0)
+  correctAttempts  Int      @default(0)
+  completionRate   Float    @default(0)
+  difficultyLevel  String   @default("MEDIUM")
+  lastPracticeDate DateTime?
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic])
+  @@map("topic_performances")
+}
+
+// ─────────────────────────────────────────────
+// REVISION NOTES & MIND MAPS
+// ─────────────────────────────────────────────
+
+model RevisionNote {
+  id         String   @id @default(uuid())
+  documentId String
+  summary    String
+  keyPoints  String[]
+  formulaSheet String?
+  examNotes  String?
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("revision_notes")
+}
+
+model MindMap {
+  id         String   @id @default(uuid())
+  documentId String
+  title      String
+  mapData    Json     // structured JSON tree
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("mind_maps")
+}
+
+// ─────────────────────────────────────────────
+// GAMIFICATION
+// ─────────────────────────────────────────────
+
+model XPEvent {
+  id          String   @id @default(uuid())
+  userId      String
+  amount      Int
+  reason      String
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("xp_events")
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  icon        String
+  xpThreshold Int?
+  createdAt   DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model DailyChallenge {
+  id          String   @id @default(uuid())
+  date        DateTime @unique @db.Date
+  questionIds String[]
+  createdAt   DateTime @default(now())
+
+  @@map("daily_challenges")
+}
+
+// ─────────────────────────────────────────────
+// SOCIAL / FRIENDS
+// ─────────────────────────────────────────────
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  createdAt  DateTime @default(now())
+
+  sender   User @relation("SenderFR", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("ReceiverFR", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@map("friend_requests")
+}
+
+model UserFollow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("user_follows")
+}
+
+// ─────────────────────────────────────────────
+// COMMUNITY
+// ─────────────────────────────────────────────
+
+enum PostStatus {
+  PENDING_MODERATION
+  APPROVED
+  REJECTED
+}
+
+model CommunityPost {
+  id          String     @id @default(uuid())
+  userId      String
+  title       String
+  content     String
+  topics      String[]
+  status      PostStatus @default(PENDING_MODERATION)
+  upvotes     Int        @default(0)
+  downvotes   Int        @default(0)
+  moderationReason String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers CommunityAnswer[]
+  votes   Vote[]
+
+  @@map("community_posts")
+}
+
+model CommunityAnswer {
+  id         String   @id @default(uuid())
+  postId     String
+  userId     String
+  content    String
+  isAccepted Boolean  @default(false)
+  upvotes    Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  post  CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votes Vote[]
+
+  @@map("community_answers")
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String?
+  answerId  String?
+  value     Int      // +1 or -1
+  createdAt DateTime @default(now())
+
+  user   User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post   CommunityPost?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  answer CommunityAnswer? @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@map("votes")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTIONS
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  plan            String   @default("FREE")
+  status          String   @default("ACTIVE")
+  currentPeriodEnd DateTime?
+  paymentGateway  String?
+  externalId      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// AI TUTOR SESSIONS
+// ─────────────────────────────────────────────
+
+model AITutorSession {
+  id         String   @id @default(uuid())
+  userId     String
+  documentId String?
+  messages   Json[]   // {role, content, timestamp}
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_tutor_sessions")
+}
+
+// ─────────────────────────────────────────────
+// AI USAGE / COST TRACKING
+// ─────────────────────────────────────────────
+
+model AIUsageLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  provider     String
+  model        String
+  task         String
+  promptTokens Int
+  outputTokens Int
+  costUsd      Float
+  createdAt    DateTime @default(now())
+
+  @@map("ai_usage_logs")
+}
