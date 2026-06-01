@@ -6,4 +6,6 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }
+  ,
+  "setupFiles": ["<rootDir>/jest-e2e-setup.js"]
 }
