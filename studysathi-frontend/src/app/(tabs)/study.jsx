@@ -177,11 +177,24 @@ export default function StudyScreen() {
         <TouchableOpacity style={styles.uploadBtn} onPress={handlePickDocument} disabled={uploading}>
           {uploading ?
           <ActivityIndicator color="#FFF" /> :
-
           <Ionicons name="cloud-upload" size={22} color="#FFF" />
           }
         </TouchableOpacity>
       </View>
+
+      {/* Quiz History Banner */}
+      <TouchableOpacity style={styles.historyBanner} onPress={() => router.push('/quiz/history')}>
+        <View style={styles.historyBannerLeft}>
+          <View style={styles.historyIconBox}>
+            <Ionicons name="trophy" size={18} color="#f59e0b" />
+          </View>
+          <View>
+            <Text style={styles.historyBannerTitle}>Quiz History</Text>
+            <Text style={styles.historyBannerSub}>View past attempts & re-attempt quizzes</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.3)" />
+      </TouchableOpacity>
 
       {loading ?
       <View style={styles.loadingContainer}>
@@ -299,6 +312,42 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 20,
     gap: 16
+  },
+  historyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 12,
+    marginBottom: 4,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
+  },
+  historyBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  historyIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyBannerTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  historyBannerSub: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    marginTop: 2,
   },
   docCard: {
     flexDirection: 'row',

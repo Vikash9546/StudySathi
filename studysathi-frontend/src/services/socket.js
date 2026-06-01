@@ -1,11 +1,10 @@
 import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-const SOCKET_URL = Platform.select({
-  android: 'http://10.0.2.2:3000/realtime',
-  default: 'http://localhost:3000/realtime'
-});
+const hostUri = Constants.expoConfig?.hostUri;
+const ip = hostUri ? hostUri.split(':')[0] : 'localhost';
+const SOCKET_URL = `http://${ip}:3000/realtime`;
 
 let socket = null;
 

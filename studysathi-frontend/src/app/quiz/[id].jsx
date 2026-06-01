@@ -38,15 +38,29 @@ export default function ActiveQuizScreen() {
         const quizRes = await api.post(
           `/api/quizzes/document/${documentId}`
         );
-        const activeQuiz = quizRes.quiz;
+        const activeQuiz = quizRes.data.quiz;
         setQuiz(activeQuiz);
-        setQuestions(quizRes.questions.filter((q) => q.type === 'MCQ')); // Frontend player handles MCQs
 
-        // 2. Start attempt
+        // 2. Start attempt — returns adaptive/shuffled questions
         const attemptRes = await api.post(
-          `/api/quizzes/${activeQuiz.id}/start`
+          `/api/quizzes/${activeQuiz.id}/attempt`
         );
-        setAttemptId(attemptRes.attempt.id);
+        setAttemptId(attemptRes.data.attempt.id);
+
+        // Use the questions from startAttempt (adaptive + shuffled options)
+        const attemptQuestions = (attemptRes.data.questions || []).filter(
+          (q) => q.type === 'MCQ' && Array.isArray(q.options) && q.options.length > 0
+        );
+
+        // Fallback: use questions from createDocumentQuiz if attempt returned none
+        if (attemptQuestions.length === 0) {
+          const fallbackQuestions = (quizRes.data.questions || []).filter(
+            (q) => q.type === 'MCQ' && Array.isArray(q.options) && q.options.length > 0
+          );
+          setQuestions(fallbackQuestions);
+        } else {
+          setQuestions(attemptQuestions);
+        }
 
         // 3. Start timer
         timerRef.current = setInterval(() => {
@@ -114,7 +128,7 @@ export default function ActiveQuizScreen() {
       }));
 
       const res = await api.post(
-        `/api/quizzes/attempts/${attemptId}/submit`,
+        `/api/quizzes/attempt/${attemptId}/submit`,
         { answers: payloadAnswers }
       );
 
@@ -192,12 +206,12 @@ export default function ActiveQuizScreen() {
 
         {/* Options Panel */}
         <View style={styles.optionsList}>
-          {currentQuestion.options.map((option, idx) => {
+          {(currentQuestion.options || []).map((option, idx) => {
             const isSelected = answers[currentQuestion.id] === option;
             const letter = ['A', 'B', 'C', 'D'][idx] || '?';
             return (
               <TouchableOpacity
-                key={option}
+                key={`${currentQuestion.id}-opt-${idx}`}
                 style={[styles.optionCard, isSelected && styles.selectedOptionCard]}
                 onPress={() => selectOption(option)}>
                 

@@ -40,6 +40,8 @@ export const AuthProvider = ({ children }) => {
         const token = await AsyncStorage.getItem('accessToken');
         if (token) {
           const res = await api.get('/api/auth/me');
+          console.log('[AuthContext] restoreSession - res:', JSON.stringify(res));
+          console.log('[AuthContext] restoreSession - setting user to:', JSON.stringify(res.data.user));
           setUser(res.data.user);
         }
       } catch (err) {
@@ -56,7 +58,9 @@ export const AuthProvider = ({ children }) => {
       '/api/auth/login',
       { email, password }
     );
+    console.log('[AuthContext] login - res:', JSON.stringify(res));
     const { user: loggedUser, accessToken, refreshToken } = res.data;
+    console.log('[AuthContext] login - setting user to:', JSON.stringify(loggedUser));
     await AsyncStorage.setItem('accessToken', accessToken);
     await AsyncStorage.setItem('refreshToken', refreshToken);
     setUser(loggedUser);
@@ -73,7 +77,9 @@ export const AuthProvider = ({ children }) => {
       '/api/auth/register',
       { name, email, password }
     );
+    console.log('[AuthContext] register - res:', JSON.stringify(res));
     const { user: registeredUser, accessToken, refreshToken } = res.data;
+    console.log('[AuthContext] register - setting user to:', JSON.stringify(registeredUser));
     await AsyncStorage.setItem('accessToken', accessToken);
     await AsyncStorage.setItem('refreshToken', refreshToken);
     setUser(registeredUser);
@@ -96,12 +102,15 @@ export const AuthProvider = ({ children }) => {
   const refreshProfile = async () => {
     try {
       const res = await api.get('/api/auth/me');
+      console.log('[AuthContext] refreshProfile - res:', JSON.stringify(res));
       setUser(res.data.user);
     } catch {}
   };
 
   const completeOnboarding = async (data) => {
-    const res = await api.put('/api/profile', data);
+    const res = await api.post('/api/profile/onboarding', data);
+    console.log('[AuthContext] completeOnboarding - res:', JSON.stringify(res));
+    console.log('[AuthContext] completeOnboarding - setting user to:', JSON.stringify(res.data));
     setUser(res.data);
     router.replace('/(tabs)');
   };
