@@ -5,7 +5,12 @@ import { GeminiProvider } from './providers/gemini.provider';
 import { GroqProvider } from './providers/groq.provider';
 import { PromptCacheService } from './cache/prompt-cache';
 import { UsageTrackerService } from './logger/usage-tracker';
-import { AITask, AIProvider, TASK_ROUTING, ModelConfig } from './strategies/task-router';
+import {
+  AITask,
+  AIProvider,
+  TASK_ROUTING,
+  ModelConfig,
+} from './strategies/task-router';
 
 export interface AIGatewayResult {
   text: string;
@@ -40,7 +45,12 @@ export class AIGatewayService {
     if (useCache) {
       const cached = await this.cache.get(cacheKey);
       if (cached) {
-        return { text: cached, provider: 'cache', model: 'cache', cached: true };
+        return {
+          text: cached,
+          provider: 'cache',
+          model: 'cache',
+          cached: true,
+        };
       }
     }
 

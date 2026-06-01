@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const multer = require('multer');
 
 export const ALLOWED_MIME_TYPES = [
@@ -21,7 +21,10 @@ export function createUploadMiddleware(maxSizeMB = 20) {
       if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
         cb(null, true);
       } else {
-        cb(new BadRequestException(`File type ${file.mimetype} not allowed`), false);
+        cb(
+          new BadRequestException(`File type ${file.mimetype} not allowed`),
+          false,
+        );
       }
     },
   });

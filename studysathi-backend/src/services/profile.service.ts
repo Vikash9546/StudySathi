@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../config/prisma.service';
-import { IsString, IsOptional, IsDateString, IsArray, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsArray,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateProfileDto {
@@ -67,10 +73,20 @@ export class ProfileService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        id: true, name: true, email: true, avatarUrl: true,
-        plan: true, examGoal: true, subjects: true,
-        dailyTargetMins: true, examDate: true, onboardingDone: true,
-        xp: true, level: true, streakCount: true, createdAt: true,
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        plan: true,
+        examGoal: true,
+        subjects: true,
+        dailyTargetMins: true,
+        examDate: true,
+        onboardingDone: true,
+        xp: true,
+        level: true,
+        streakCount: true,
+        createdAt: true,
       },
     });
     if (!user) throw new NotFoundException('User not found');
@@ -85,9 +101,16 @@ export class ProfileService {
         examDate: dto.examDate ? new Date(dto.examDate) : undefined,
       },
       select: {
-        id: true, name: true, email: true, avatarUrl: true,
-        plan: true, examGoal: true, subjects: true,
-        dailyTargetMins: true, examDate: true, onboardingDone: true,
+        id: true,
+        name: true,
+        email: true,
+        avatarUrl: true,
+        plan: true,
+        examGoal: true,
+        subjects: true,
+        dailyTargetMins: true,
+        examDate: true,
+        onboardingDone: true,
       },
     });
     return updated;
@@ -112,9 +135,9 @@ export class ProfileService {
       orderBy: { accuracy: 'asc' },
     });
     return {
-      weak: performances.filter(p => p.accuracy < 60),
-      medium: performances.filter(p => p.accuracy >= 60 && p.accuracy < 80),
-      strong: performances.filter(p => p.accuracy >= 80),
+      weak: performances.filter((p) => p.accuracy < 60),
+      medium: performances.filter((p) => p.accuracy >= 60 && p.accuracy < 80),
+      strong: performances.filter((p) => p.accuracy >= 80),
     };
   }
 
@@ -122,8 +145,13 @@ export class ProfileService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        name: true, xp: true, level: true, streakCount: true,
-        dailyTargetMins: true, examGoal: true, examDate: true,
+        name: true,
+        xp: true,
+        level: true,
+        streakCount: true,
+        dailyTargetMins: true,
+        examGoal: true,
+        examDate: true,
       },
     });
 

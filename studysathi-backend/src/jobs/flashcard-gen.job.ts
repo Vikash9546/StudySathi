@@ -35,7 +35,7 @@ export class FlashcardGenJob extends WorkerHost {
       if (!chunk) continue;
 
       const existing = await this.prisma.flashcard.count({
-        where: { documentId, /* no direct chunkId on flashcard */ },
+        where: { documentId /* no direct chunkId on flashcard */ },
       });
 
       // Limit to 10 flashcards total for free initial generation
@@ -90,13 +90,21 @@ Requirements:
           documentId: chunk.documentId,
           front: f.front,
           back: f.back,
-          type: (['DEFINITION', 'FORMULA', 'PROCESS', 'CONCEPT', 'COMPARISON'].includes(f.type)
+          type: ([
+            'DEFINITION',
+            'FORMULA',
+            'PROCESS',
+            'CONCEPT',
+            'COMPARISON',
+          ].includes(f.type)
             ? f.type
             : 'CONCEPT') as any,
           topic: f.topic || chunk.topic,
         })),
       });
-      this.logger.log(`Created ${flashcards.length} flashcards for chunk ${chunk.id}`);
+      this.logger.log(
+        `Created ${flashcards.length} flashcards for chunk ${chunk.id}`,
+      );
     }
   }
 }

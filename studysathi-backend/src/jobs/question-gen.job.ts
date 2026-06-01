@@ -34,9 +34,13 @@ export class QuestionGenJob extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ documentId: string; chunkIds: string[]; priority?: string }>) {
+  async process(
+    job: Job<{ documentId: string; chunkIds: string[]; priority?: string }>,
+  ) {
     const { documentId, chunkIds } = job.data;
-    this.logger.log(`Generating questions for ${chunkIds.length} chunks, doc: ${documentId}`);
+    this.logger.log(
+      `Generating questions for ${chunkIds.length} chunks, doc: ${documentId}`,
+    );
 
     for (const chunkId of chunkIds) {
       const chunk = await this.prisma.documentChunk.findUnique({
@@ -167,7 +171,9 @@ Requirements:
           topic: q.topic || chunk.topic,
         })),
       });
-      this.logger.log(`Created ${questions.length} subjective questions for chunk ${chunk.id}`);
+      this.logger.log(
+        `Created ${questions.length} subjective questions for chunk ${chunk.id}`,
+      );
     }
   }
 }

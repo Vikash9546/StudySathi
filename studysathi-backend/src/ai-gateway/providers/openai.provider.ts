@@ -35,7 +35,10 @@ export class OpenAIProvider {
     };
   }
 
-  async createEmbedding(text: string, model = 'text-embedding-3-small'): Promise<number[]> {
+  async createEmbedding(
+    text: string,
+    model = 'text-embedding-3-small',
+  ): Promise<number[]> {
     const response = await this.client.embeddings.create({
       model,
       input: text,

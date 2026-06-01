@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ConfigService } from '@nestjs/config';
@@ -71,10 +76,14 @@ export class DocumentService {
     });
 
     // Queue processing
-    await this.documentQueue.add('parse', { documentId: document.id }, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-    });
+    await this.documentQueue.add(
+      'parse',
+      { documentId: document.id },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+      },
+    );
 
     this.logger.log(`Document ${document.id} queued for processing`);
     return document;
@@ -103,7 +112,13 @@ export class DocumentService {
       this.prisma.document.count({ where: { userId } }),
     ]);
 
-    return { documents, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      documents,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // ── Get single document ──────────────────────────────────────────────────────

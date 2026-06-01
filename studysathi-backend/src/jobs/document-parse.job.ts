@@ -10,7 +10,6 @@ import { Queue } from 'bullmq';
 
 // Dynamic imports for ESM packages
 async function parsePDF(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const pdfParse = require('pdf-parse');
   const data = await pdfParse(buffer);
   return data.text;
@@ -111,7 +110,12 @@ Return a JSON object with this structure:
         { useCache: false },
       );
 
-      let topicData = { subject: null, topics: [], difficulty: 'MEDIUM', educationLevel: null };
+      let topicData = {
+        subject: null,
+        topics: [],
+        difficulty: 'MEDIUM',
+        educationLevel: null,
+      };
       try {
         const jsonMatch = topicResult.text.match(/\{[\s\S]*\}/);
         if (jsonMatch) topicData = JSON.parse(jsonMatch[0]);
@@ -121,7 +125,9 @@ Return a JSON object with this structure:
 
       // Create chunks
       const chunks = chunkText(text);
-      this.logger.log(`Created ${chunks.length} chunks for document ${documentId}`);
+      this.logger.log(
+        `Created ${chunks.length} chunks for document ${documentId}`,
+      );
 
       // Store chunks
       await this.prisma.documentChunk.createMany({
@@ -165,7 +171,9 @@ Return a JSON object with this structure:
 
       this.logger.log(`Document ${documentId} processed successfully`);
     } catch (error) {
-      this.logger.error(`Failed to process document ${documentId}: ${error.message}`);
+      this.logger.error(
+        `Failed to process document ${documentId}: ${error.message}`,
+      );
       await this.prisma.document.update({
         where: { id: documentId },
         data: { status: 'FAILED', processingError: error.message },

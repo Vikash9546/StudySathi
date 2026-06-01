@@ -7,7 +7,12 @@ function sm2(
   repetitions: number,
   easeFactor: number,
   interval: number,
-): { repetitions: number; easeFactor: number; interval: number; nextReviewDate: Date } {
+): {
+  repetitions: number;
+  easeFactor: number;
+  interval: number;
+  nextReviewDate: Date;
+} {
   let newRepetitions = repetitions;
   let newEaseFactor = easeFactor;
   let newInterval = interval;
@@ -22,13 +27,19 @@ function sm2(
     newInterval = 1;
   }
 
-  newEaseFactor = easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02);
+  newEaseFactor =
+    easeFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02);
   if (newEaseFactor < 1.3) newEaseFactor = 1.3;
 
   const nextReviewDate = new Date();
   nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
 
-  return { repetitions: newRepetitions, easeFactor: newEaseFactor, interval: newInterval, nextReviewDate };
+  return {
+    repetitions: newRepetitions,
+    easeFactor: newEaseFactor,
+    interval: newInterval,
+    nextReviewDate,
+  };
 }
 
 const RATING_QUALITY: Record<string, number> = {
@@ -50,7 +61,7 @@ export class FlashcardService {
       where: { userId },
       select: { id: true },
     });
-    const docIds = userDocs.map(d => d.id);
+    const docIds = userDocs.map((d) => d.id);
 
     // Get flashcards that are due (last review's nextReviewDate <= now, or never reviewed)
     const flashcards = await this.prisma.flashcard.findMany({
@@ -64,12 +75,12 @@ export class FlashcardService {
       },
     });
 
-    const due = flashcards.filter(fc => {
+    const due = flashcards.filter((fc) => {
       if (fc.reviews.length === 0) return true;
       return fc.reviews[0].nextReviewDate <= now;
     });
 
-    return due.map(fc => ({
+    return due.map((fc) => ({
       id: fc.id,
       front: fc.front,
       back: fc.back,
@@ -84,7 +95,9 @@ export class FlashcardService {
     flashcardId: string,
     rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY',
   ) {
-    const flashcard = await this.prisma.flashcard.findUnique({ where: { id: flashcardId } });
+    const flashcard = await this.prisma.flashcard.findUnique({
+      where: { id: flashcardId },
+    });
     if (!flashcard) throw new NotFoundException('Flashcard not found');
 
     // Get last review for SM-2 state
@@ -121,10 +134,14 @@ export class FlashcardService {
       where: { userId },
       select: { id: true },
     });
-    const docIds = userDocs.map(d => d.id);
+    const docIds = userDocs.map((d) => d.id);
 
-    const total = await this.prisma.flashcard.count({ where: { documentId: { in: docIds } } });
-    const reviewed = await this.prisma.flashcardReview.count({ where: { userId } });
+    const total = await this.prisma.flashcard.count({
+      where: { documentId: { in: docIds } },
+    });
+    const reviewed = await this.prisma.flashcardReview.count({
+      where: { userId },
+    });
     const due = (await this.getDueFlashcards(userId)).length;
 
     return { total, reviewed, due };

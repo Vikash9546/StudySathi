@@ -1,6 +1,12 @@
 import {
-  Controller, Get, Post, Body, Param, Query,
-  DefaultValuePipe, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsArray, IsOptional } from 'class-validator';
@@ -30,7 +36,7 @@ export class QuizController {
   }
 
   @Post('daily')
-  @ApiOperation({ summary: 'Get or create today\'s daily quiz' })
+  @ApiOperation({ summary: "Get or create today's daily quiz" })
   async dailyQuiz(@CurrentUser() user: any) {
     return this.quizService.createDailyQuiz(user.id);
   }

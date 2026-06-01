@@ -1,6 +1,10 @@
 import { Controller, Get, Put, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { ProfileService, UpdateProfileDto, CompleteOnboardingDto } from '../../services/profile.service';
+import {
+  ProfileService,
+  UpdateProfileDto,
+  CompleteOnboardingDto,
+} from '../../services/profile.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('profile')
@@ -23,7 +27,10 @@ export class ProfileController {
 
   @Post('onboarding')
   @ApiOperation({ summary: 'Complete onboarding flow' })
-  async onboarding(@CurrentUser() user: any, @Body() dto: CompleteOnboardingDto) {
+  async onboarding(
+    @CurrentUser() user: any,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
     return this.profileService.completeOnboarding(user.id, dto);
   }
 

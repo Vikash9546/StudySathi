@@ -33,7 +33,9 @@ export class QuizService {
     });
 
     if (questions.length === 0) {
-      throw new BadRequestException('No questions generated yet. Please wait for processing.');
+      throw new BadRequestException(
+        'No questions generated yet. Please wait for processing.',
+      );
     }
 
     const quiz = await this.prisma.quiz.create({
@@ -41,7 +43,7 @@ export class QuizService {
         title: `Quiz: ${doc.title}`,
         type: 'DOCUMENT',
         documentId,
-        questionIds: questions.map(q => q.id),
+        questionIds: questions.map((q) => q.id),
       },
     });
 
@@ -64,7 +66,7 @@ export class QuizService {
         where: { userId, status: 'READY' },
         select: { id: true },
       });
-      const docIds = userDocs.map(d => d.id);
+      const docIds = userDocs.map((d) => d.id);
 
       const questions = await this.prisma.question.findMany({
         where: { documentId: { in: docIds }, type: 'MCQ' },
@@ -73,7 +75,7 @@ export class QuizService {
       });
 
       daily = await this.prisma.dailyChallenge.create({
-        data: { date: today, questionIds: questions.map(q => q.id) },
+        data: { date: today, questionIds: questions.map((q) => q.id) },
       });
     }
 
@@ -105,13 +107,17 @@ export class QuizService {
     const questions = await this.prisma.question.findMany({
       where: { id: { in: quiz.questionIds } },
       select: {
-        id: true, question: true, options: true, type: true,
-        difficulty: true, topic: true,
+        id: true,
+        question: true,
+        options: true,
+        type: true,
+        difficulty: true,
+        topic: true,
         // Do NOT include correctAnswer here
       },
     });
 
-    return { attempt, questions: this.shuffleOptions(questions as any) };
+    return { attempt, questions: this.shuffleOptions(questions) };
   }
 
   // ── Submit quiz attempt ────────────────────────────────────────────────────
@@ -173,7 +179,11 @@ export class QuizService {
     });
 
     // Award XP
-    await this.gamification.awardXP(userId, xpEarned, `Quiz completed: ${correctCount} correct answers`);
+    await this.gamification.awardXP(
+      userId,
+      xpEarned,
+      `Quiz completed: ${correctCount} correct answers`,
+    );
 
     // Update topic performance
     await this.updateTopicPerformance(userId, answerRecords);
@@ -208,15 +218,19 @@ export class QuizService {
       timeTaken: attempt.timeTaken,
       xpEarned: attempt.xpEarned,
       topicBreakdown,
-      weakAreas: topicBreakdown.filter(t => t.accuracy < 60).map(t => t.topic),
-      strongAreas: topicBreakdown.filter(t => t.accuracy >= 80).map(t => t.topic),
+      weakAreas: topicBreakdown
+        .filter((t) => t.accuracy < 60)
+        .map((t) => t.topic),
+      strongAreas: topicBreakdown
+        .filter((t) => t.accuracy >= 80)
+        .map((t) => t.topic),
       answers: attempt.answers,
     };
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   private shuffleOptions(questions: any[]) {
-    return questions.map(q => ({
+    return questions.map((q) => ({
       ...q,
       options: q.options?.sort(() => Math.random() - 0.5),
     }));
@@ -234,7 +248,8 @@ export class QuizService {
       topic,
       correct: data.correct,
       total: data.total,
-      accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+      accuracy:
+        data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
     }));
   }
 
@@ -242,9 +257,12 @@ export class QuizService {
     const topicMap: Record<string, { correct: number; total: number }> = {};
 
     for (const ans of answers) {
-      const question = await this.prisma.question.findUnique({ where: { id: ans.questionId } });
+      const question = await this.prisma.question.findUnique({
+        where: { id: ans.questionId },
+      });
       if (!question?.topic) continue;
-      if (!topicMap[question.topic]) topicMap[question.topic] = { correct: 0, total: 0 };
+      if (!topicMap[question.topic])
+        topicMap[question.topic] = { correct: 0, total: 0 };
       topicMap[question.topic].total++;
       if (ans.isCorrect) topicMap[question.topic].correct++;
     }
@@ -257,7 +275,8 @@ export class QuizService {
       const newTotal = (existing?.totalAttempts ?? 0) + data.total;
       const newCorrect = (existing?.correctAttempts ?? 0) + data.correct;
       const accuracy = newTotal > 0 ? (newCorrect / newTotal) * 100 : 0;
-      const difficultyLevel = accuracy < 60 ? 'EASY' : accuracy > 80 ? 'HARD' : 'MEDIUM';
+      const difficultyLevel =
+        accuracy < 60 ? 'EASY' : accuracy > 80 ? 'HARD' : 'MEDIUM';
 
       await this.prisma.topicPerformance.upsert({
         where: { userId_topic: { userId, topic } },

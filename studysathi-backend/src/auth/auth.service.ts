@@ -29,7 +29,9 @@ export class AuthService {
 
   // ── Register ──────────────────────────────────────────────────────────
   async register(dto: RegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already registered');
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
@@ -56,7 +58,9 @@ export class AuthService {
 
   // ── Login ─────────────────────────────────────────────────────────────
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -80,7 +84,11 @@ export class AuthService {
 
     // Rotation: delete old, create new
     await this.prisma.refreshToken.delete({ where: { id: stored.id } });
-    return this.generateTokens(stored.user.id, stored.user.email, stored.user.plan);
+    return this.generateTokens(
+      stored.user.id,
+      stored.user.email,
+      stored.user.plan,
+    );
   }
 
   // ── Google OAuth ──────────────────────────────────────────────────────
@@ -114,7 +122,10 @@ export class AuthService {
       // Ensure oauth account is linked
       await this.prisma.oAuthAccount.upsert({
         where: {
-          provider_providerId: { provider: 'google', providerId: googleUser.providerId },
+          provider_providerId: {
+            provider: 'google',
+            providerId: googleUser.providerId,
+          },
         },
         update: {},
         create: {
@@ -147,8 +158,11 @@ export class AuthService {
 
   // ── Forgot Password ───────────────────────────────────────────────────
   async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!user) return { message: 'If that email exists, a reset link has been sent' };
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (!user)
+      return { message: 'If that email exists, a reset link has been sent' };
 
     const token = uuidv4();
     await this.prisma.passwordResetToken.create({
@@ -178,13 +192,17 @@ export class AuthService {
       where: { email: record.email },
       data: { passwordHash },
     });
-    await this.prisma.passwordResetToken.delete({ where: { token: dto.token } });
+    await this.prisma.passwordResetToken.delete({
+      where: { token: dto.token },
+    });
     return { message: 'Password reset successfully' };
   }
 
   // ── Logout ────────────────────────────────────────────────────────────
   async logout(refreshToken: string) {
-    await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+    await this.prisma.refreshToken.deleteMany({
+      where: { token: refreshToken },
+    });
     return { message: 'Logged out successfully' };
   }
 
