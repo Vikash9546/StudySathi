@@ -11,7 +11,7 @@ export class AnalyticsService {
     const [attempts, flashcardReviews, xpEvents, topicPerformances, documents] =
       await Promise.all([
         this.prisma.quizAttempt.findMany({
-          where: { userId, createdAt: { gte: since }, status: 'EVALUATED' },
+          where: { userId, startedAt: { gte: since }, status: 'EVALUATED' },
           select: {
             accuracy: true,
             score: true,
